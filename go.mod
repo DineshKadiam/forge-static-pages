@@ -1,6 +1,6 @@
 module codeberg.org/git-pages/git-pages
 
-go 1.26.0
+go 1.26.1
 
 require (
 	codeberg.org/git-pages/go-headers v1.1.1
@@ -21,13 +21,13 @@ require (
 	github.com/pquerna/cachecontrol v0.2.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/samber/slog-multi v1.8.0
-	github.com/tj/go-redirects v0.0.0-20200911105812-fd1ba1020b37
 	github.com/valyala/fasttemplate v1.2.2
 	golang.org/x/net v0.60.0
 	google.golang.org/protobuf v1.36.11
 )
 
 require (
+	codeberg.org/git-pages/go-redirects v1.0.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

@@ -9,38 +9,20 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/tj/go-redirects"
+	"codeberg.org/git-pages/go-redirects"
 	"google.golang.org/protobuf/proto"
 )
 
 const RedirectsFileName string = "_redirects"
 
 // Converts our Protobuf representation to tj/go-redirects.
-func exportRedirectRule(rule *RedirectRule) *redirects.Rule {
-	return &redirects.Rule{
+func exportRedirectRule(rule *RedirectRule) redirects.Rule {
+	return redirects.Rule{
 		From:   rule.GetFrom(),
 		To:     rule.GetTo(),
 		Status: int(rule.GetStatus()),
 		Force:  rule.GetForce(),
 	}
-}
-
-func unparseRedirectRule(rule *redirects.Rule) string {
-	var statusPart string
-	if rule.Force {
-		statusPart = fmt.Sprintf("%d!", rule.Status)
-	} else {
-		statusPart = fmt.Sprintf("%d", rule.Status)
-	}
-	parts := []string{
-		rule.From,
-		rule.To,
-		statusPart,
-	}
-	for name, value := range rule.Params {
-		parts = append(parts, fmt.Sprintf("%s=%s", name, value))
-	}
-	return strings.Join(parts, " ")
 }
 
 var validRedirectHTTPStatuses []int = []int{
@@ -122,8 +104,9 @@ func ProcessRedirectsFile(ctx context.Context, manifest *Manifest) error {
 
 	for index, rule := range rules {
 		if err := validateRedirectRule(&rule); err != nil {
+			ruleString := redirects.Must(redirects.UnparseString([]redirects.Rule{rule}))
 			AddProblem(manifest, RedirectsFileName,
-				"rule #%d %q: %s", index+1, unparseRedirectRule(&rule), err)
+				"rule #%d %q: %s", index+1, strings.TrimSpace(ruleString), err)
 			continue
 		}
 		manifest.Redirects = append(manifest.Redirects, &RedirectRule{
@@ -137,11 +120,11 @@ func ProcessRedirectsFile(ctx context.Context, manifest *Manifest) error {
 }
 
 func CollectRedirectsFile(manifest *Manifest) string {
-	var rules []string
+	var rules []redirects.Rule
 	for _, rule := range manifest.GetRedirects() {
-		rules = append(rules, unparseRedirectRule(exportRedirectRule(rule))+"\n")
+		rules = append(rules, exportRedirectRule(rule))
 	}
-	return strings.Join(rules, "")
+	return redirects.Must(redirects.UnparseString(rules))
 }
 
 func pathSegments(path string) []string {
@@ -253,10 +236,12 @@ func LintRedirects(manifest *Manifest) {
 			if entry.GetType() == Type_Directory {
 				entryDesc = "directory"
 			}
+			ruleString := redirects.Must(redirects.UnparseString(
+				[]redirects.Rule{exportRedirectRule(rule)}))
 			AddProblem(manifest, name,
 				"%s shadows redirect %q; remove the %s or use a %d! forced redirect instead",
 				entryDesc,
-				unparseRedirectRule(exportRedirectRule(rule)),
+				strings.TrimSpace(ruleString),
 				entryDesc,
 				rule.GetStatus(),
 			)
