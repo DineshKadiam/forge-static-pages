@@ -152,6 +152,7 @@ func getPage(w http.ResponseWriter, r *http.Request) error {
 
 	err = nil
 	sitePath = strings.TrimPrefix(r.URL.Path, "/")
+	projectPathPrefix := "/" // 2xx and 4xx redirect target URLs must start with this prefix
 	if projectName, projectPath, hasProjectSlash := strings.Cut(sitePath, "/"); projectName != "" {
 		webRoot := makeWebRoot(host, projectName)
 		if ValidateProjectName(projectName) == nil &&
@@ -170,6 +171,7 @@ func getPage(w http.ResponseWriter, r *http.Request) error {
 					return nil
 				}
 				sitePath, manifest, metadata = projectPath, projectManifest, projectMetadata
+				projectPathPrefix = fmt.Sprintf("/%s/", projectName)
 			}
 		}
 	}
@@ -323,7 +325,16 @@ func getPage(w http.ResponseWriter, r *http.Request) error {
 				writeRedirect(w, redirectStatus, redirectURL.String())
 				return nil
 			} else if redirectURL != nil {
-				entryPath = strings.TrimPrefix(redirectURL.Path, "/")
+				// Target URLs have an absolute path, but we need a relative path to search for
+				// an entry.
+				var redirectOk bool
+				entryPath, redirectOk = strings.CutPrefix(redirectURL.Path, projectPathPrefix)
+				if !redirectOk {
+					w.WriteHeader(http.StatusNotFound)
+					err := fmt.Errorf("invalid redirect")
+					fmt.Fprintf(w, "%s", err)
+					return err
+				}
 				status = int(redirectStatus)
 				// Apply user redirects at most once; if something ends in a loop, it should be
 				// the user agent, not the pages server.
