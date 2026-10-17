@@ -460,10 +460,7 @@ func getPage(w http.ResponseWriter, r *http.Request) error {
 		w.Header().Set("Content-Type", *entry.ContentType)
 	}
 
-	headersMatchURL := &url.URL{Path: entryPath}
-	if config.Feature("absolute-headers") {
-		headersMatchURL = (&url.URL{Host: r.Host}).ResolveReference(r.URL)
-	}
+	headersMatchURL := (&url.URL{Host: r.Host}).ResolveReference(r.URL)
 	customHeaders, err := ApplyHeaderRules(manifest, headersMatchURL)
 	if err != nil {
 		// This is an "internal server error" from an HTTP point of view, but also
