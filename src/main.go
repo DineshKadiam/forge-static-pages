@@ -45,12 +45,12 @@ func configureFeatures(ctx context.Context) (err error) {
 	for _, feature := range config.Features {
 		switch feature {
 		// Work-in-progress features:
-		case "preview", "expiration":
+		case "preview":
 		// Permanently unstable features:
 		case "codeberg-pages-compat", "relaxed-idna":
 		// Stabilized features:
 		case "archive-site", "audit", "compress", "patch", "serve-h2c", "existence-cache",
-			"absolute-headers":
+			"absolute-headers", "expiration":
 			logc.Printf(ctx, "feature %s has been stabilized", feature)
 		// Removed or renamed features:
 		case "h2c", "sentry-telemetry-buffer", "site-existence-cache", "domain-existence-cache":
@@ -754,10 +754,6 @@ func Main(versionInfo string) {
 		logc.Printf(ctx, "audit: expired %d records\n", count)
 
 	case *expireSites:
-		if !config.Feature("expiration") {
-			logc.Fatalf(ctx, "expire: feature disabled")
-		}
-
 		countExpired, countTransient := 0, 0
 		for item, err := range backend.GetAllManifests(ctx) {
 			metadata, manifest := item.Splat()

@@ -518,22 +518,20 @@ func getUpdateOptions(
 ) (opts UpdateOptions, ok bool) {
 	var err error
 
-	if config.Feature("expiration") {
-		if expires := r.Header.Get("Expires"); expires != "" {
-			opts.expiresAt, err = time.Parse(http.TimeFormat, expires)
-			if err != nil {
-				http.Error(w, "malformed Expires: header", http.StatusBadRequest)
-				return
-			}
-			if !config.Limits.AllowExpiration {
-				http.Error(w, "expiration forbidden by policy", http.StatusBadRequest)
-				return
-			}
+	if expires := r.Header.Get("Expires"); expires != "" {
+		opts.expiresAt, err = time.Parse(http.TimeFormat, expires)
+		if err != nil {
+			http.Error(w, "malformed Expires: header", http.StatusBadRequest)
+			return
 		}
-		if !auth.expiresNoLater.IsZero() {
-			if opts.expiresAt.IsZero() || opts.expiresAt.After(auth.expiresNoLater) {
-				opts.expiresAt = auth.expiresNoLater
-			}
+		if !config.Limits.AllowExpiration {
+			http.Error(w, "expiration forbidden by policy", http.StatusBadRequest)
+			return
+		}
+	}
+	if !auth.expiresNoLater.IsZero() {
+		if opts.expiresAt.IsZero() || opts.expiresAt.After(auth.expiresNoLater) {
+			opts.expiresAt = auth.expiresNoLater
 		}
 	}
 
