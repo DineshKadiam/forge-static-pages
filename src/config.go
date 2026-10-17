@@ -74,7 +74,7 @@ type Config struct {
 
 type ServerConfig struct {
 	Pages   string `toml:"pages" default:"tcp/localhost:3000"`
-	Caddy   string `toml:"caddy" default:"tcp/localhost:3001"`
+	Proxy   string `toml:"proxy" default:"tcp/localhost:3001"`
 	Metrics string `toml:"metrics" default:"tcp/localhost:3002"`
 }
 

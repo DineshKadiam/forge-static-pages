@@ -3,25 +3,46 @@ package git_pages
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 )
 
-func ServeCaddy(w http.ResponseWriter, r *http.Request) {
+func ServeProxy(w http.ResponseWriter, r *http.Request) {
 	domain := r.URL.Query().Get("domain")
 	if domain == "" {
-		http.Error(w, "domain parameter required", http.StatusBadRequest)
-		return
+		proxyListDomains(w, r)
+	} else {
+		proxyCheckDomain(w, r, domain)
+	}
+}
+
+func proxyListDomains(w http.ResponseWriter, r *http.Request) {
+	domainSet := map[string]unit{}
+	for metadata, err := range backend.EnumerateManifests(r.Context()) {
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "%s", err)
+		}
+		domain, _, _ := strings.Cut(metadata.Name, "/")
+		domainSet[domain] = Unit
 	}
 
+	w.Header().Add("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(slices.Collect(maps.Keys(domainSet)))
+}
+
+func proxyCheckDomain(w http.ResponseWriter, r *http.Request, domain string) {
 	// Save the backend some effort from queries that are essentially guaranteed to fail.
 	// While TLS certificates may be provisionsed for IP addresses under special circumstances[^1],
 	// this isn't really what git-pages is designed for, and object store accesses can cost money.
 	// [^1]: https://letsencrypt.org/2025/07/01/issuing-our-first-ip-address-certificate
 	if ip := net.ParseIP(domain); ip != nil {
-		logc.Println(r.Context(), "caddy:", domain, 404, "(bare IP)")
+		logc.Println(r.Context(), "proxy:", domain, 404, "(bare IP)")
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -46,18 +67,18 @@ func ServeCaddy(w http.ResponseWriter, r *http.Request) {
 		// thankfully making it unnecessary to examine X.509 certificates manually here.)
 		found, err = tryDialWithSNI(r.Context(), domain)
 		if err != nil {
-			logc.Printf(r.Context(), "caddy err: check SNI: %s\n", err)
+			logc.Printf(r.Context(), "proxy err: check SNI: %s\n", err)
 		}
 	}
 
 	if found {
-		logc.Println(r.Context(), "caddy:", domain, 200)
+		logc.Println(r.Context(), "proxy:", domain, 200)
 		w.WriteHeader(http.StatusOK)
 	} else if err == nil {
-		logc.Println(r.Context(), "caddy:", domain, 404)
+		logc.Println(r.Context(), "proxy:", domain, 404)
 		w.WriteHeader(http.StatusNotFound)
 	} else {
-		logc.Println(r.Context(), "caddy:", domain, 500)
+		logc.Println(r.Context(), "proxy:", domain, 500)
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintln(w, err)
 	}
@@ -78,7 +99,7 @@ func tryDialWithSNI(ctx context.Context, domain string) (bool, error) {
 		connectPort = "443"
 	}
 
-	logc.Printf(ctx, "caddy: check TLS %s", fallbackURL)
+	logc.Printf(ctx, "proxy: check TLS %s", fallbackURL)
 	dialer := tls.Dialer{Config: &tls.Config{ServerName: domain}}
 	connection, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(connectHost, connectPort))
 	if err != nil {

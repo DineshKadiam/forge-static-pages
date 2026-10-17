@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+type unit struct{}
+
+var Unit unit = unit{}
+
 type tuple[A, B any] struct {
 	A A
 	B B

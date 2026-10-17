@@ -886,7 +886,7 @@ func Main(versionInfo string) {
 		// with git-pages on startup and return errors for requests that would have been served
 		// just 0.5s later.
 		pagesListener := listen(ctx, "pages", config.Server.Pages)
-		caddyListener := listen(ctx, "caddy", config.Server.Caddy)
+		proxyListener := listen(ctx, "caddy", config.Server.Proxy)
 		metricsListener := listen(ctx, "metrics", config.Server.Metrics)
 
 		if backend, err = CreateBackend(ctx, &config.Storage); err != nil {
@@ -904,7 +904,7 @@ func Main(versionInfo string) {
 			ObserveHTTPHandler,
 		)
 		go serve(ctx, pagesListener, middleware(http.HandlerFunc(ServePages)))
-		go serve(ctx, caddyListener, middleware(http.HandlerFunc(ServeCaddy)))
+		go serve(ctx, proxyListener, middleware(http.HandlerFunc(ServeProxy)))
 		go serve(ctx, metricsListener, promhttp.Handler())
 
 		if config.Insecure {
