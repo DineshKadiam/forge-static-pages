@@ -112,9 +112,6 @@ func TranslateWildcards(wildcardConfigs []WildcardConfig) ([]*WildcardPattern, e
 			}
 		}
 
-		if !config.Feature("preview") {
-			wildcardConfig.PreviewDomain = ""
-		}
 		if wildcardConfig.PreviewDomain != "" {
 			if wildcardConfig.Authorization != "forgejo" {
 				return nil, fmt.Errorf(
