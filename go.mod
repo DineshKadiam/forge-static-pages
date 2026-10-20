@@ -1,6 +1,6 @@
 module codeberg.org/git-pages/git-pages
 
-go 1.26.1
+go 1.26.10
 
 require (
 	codeberg.org/git-pages/go-headers v1.1.1
