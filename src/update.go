@@ -70,7 +70,7 @@ func Update(
 				outcome = UpdateDeleted
 			}
 		}
-	} else if err = PrepareManifest(ctx, newManifest); err == nil {
+	} else if err = PrepareManifest(ctx, webRoot, newManifest); err == nil {
 		storedManifest, err = StoreManifest(ctx, webRoot, newManifest, opts)
 		if err == nil {
 			domain, _, _ := strings.Cut(webRoot, "/")

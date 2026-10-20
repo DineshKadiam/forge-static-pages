@@ -338,9 +338,11 @@ func CompressFiles(ctx context.Context, manifest *Manifest) {
 // Apply post-processing steps to the manifest.
 // At the moment, there isn't a good way to report errors except to log them on the terminal.
 // (Perhaps in the future they could be exposed at `.git-pages/status.txt`?)
-func PrepareManifest(ctx context.Context, manifest *Manifest) error {
+func PrepareManifest(ctx context.Context, webRoot string, manifest *Manifest) error {
+	_, project, _ := strings.Cut(webRoot, "/")
+
 	// Parse Netlify-style `_redirects`.
-	if err := ProcessRedirectsFile(ctx, manifest); err != nil {
+	if err := ProcessRedirectsFile(ctx, project, manifest); err != nil {
 		logc.Printf(ctx, "redirects err: %s\n", err)
 	} else if len(manifest.Redirects) > 0 {
 		logc.Printf(ctx, "redirects ok: %d rules\n", len(manifest.Redirects))

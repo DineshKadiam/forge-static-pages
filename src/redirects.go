@@ -43,7 +43,7 @@ func Is3xxHTTPStatus(status int) bool {
 	return status >= 300 && status <= 399
 }
 
-func validateRedirectRule(rule *redirects.Rule) error {
+func validateRedirectRule(project string, rule *redirects.Rule) error {
 	if len(rule.Params) > 0 {
 		return fmt.Errorf("rules with parameters are not supported")
 	}
@@ -76,11 +76,20 @@ func validateRedirectRule(rule *redirects.Rule) error {
 			return fmt.Errorf("'to' URL may only include a hostname for 3xx status rules")
 		}
 	}
+	// After v0.9.1, we've changed the redirect handling so that the 'to' URL for a rewrite rule
+	// must be a valid URL pointing to this site, rather than a valid path within the manifest
+	// (which was the old, incorrect interpretation). This broke every SPA on git-pages that was
+	// deployed to a non-index project. Unfortunately, we can't do much more than diagnosing
+	// the problematic pattern at deploy time.
+	if rule.Status == http.StatusOK && project != ".index" && toURL.Host == "" &&
+		!strings.HasPrefix(toURL.Path, fmt.Sprintf("/%s/", project)) {
+		return fmt.Errorf("'to' URL must start with '/%s/' for a 200 status rule", project)
+	}
 	return nil
 }
 
 // Parses redirects file and injects rules into the manifest.
-func ProcessRedirectsFile(ctx context.Context, manifest *Manifest) error {
+func ProcessRedirectsFile(ctx context.Context, project string, manifest *Manifest) error {
 	redirectsEntry := manifest.Contents[RedirectsFileName]
 	delete(manifest.Contents, RedirectsFileName)
 	if redirectsEntry == nil {
@@ -103,7 +112,7 @@ func ProcessRedirectsFile(ctx context.Context, manifest *Manifest) error {
 	}
 
 	for index, rule := range rules {
-		if err := validateRedirectRule(&rule); err != nil {
+		if err := validateRedirectRule(project, &rule); err != nil {
 			ruleString := redirects.Must(redirects.UnparseString([]redirects.Rule{rule}))
 			AddProblem(manifest, RedirectsFileName,
 				"rule #%d %q: %s", index+1, strings.TrimSpace(ruleString), err)
