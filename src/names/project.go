@@ -1,0 +1,116 @@
+package names
+
+import (
+	"errors"
+	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
+)
+
+var ErrInvalidProjectName = errors.New("invalid project name")
+var ErrInvalidProjectURL = errors.New("invalid project URL")
+
+const indexProject = ".index"
+const previewSeparator = "@"
+
+// Name of a git-pages project. The index project corresponds to the root URL of a domain, and
+// non-index projects are distinguished by the first path segment of the URL.
+//
+// Most operations (other than IsValid) on an invalid project name will panic.
+type Project struct {
+	name string
+}
+
+// IsValid checks whether the project name is valid. The zero value is the only invalid value.
+func (p Project) IsValid() bool {
+	return p.name != ""
+}
+
+// MustValid ensures the project name is valid by panicking if it is not.
+func (p Project) MustValid() Project {
+	if !p.IsValid() {
+		panic("nil project name")
+	}
+	return p
+}
+
+// String returns the project name (".index" for the index project).
+func (p Project) String() string {
+	return p.MustValid().name
+}
+
+// IsIndex checks whether this name corresponds to the index project.
+func (p Project) IsIndex() bool {
+	return p.String() == indexProject
+}
+
+// GetPullRequest returns (baseName, prNumber, isPreview), where isPreview is true if this is
+// a preview project name for a pull request. In the latter case, prNumber is set correspondingly,
+// and baseName contains the repository name. Otherwise, baseName equals p.String().
+func (p Project) GetPullRequest() (baseName string, prNumber int64, isPreview bool) {
+	var atSuffix string
+	if baseName, atSuffix, isPreview = strings.Cut(p.String(), "@"); isPreview {
+		prNumber, _ = strconv.ParseInt(atSuffix, 10, 64)
+	} else {
+		baseName = p.String()
+	}
+	return
+}
+
+func validateProjectName(name string) (proj Project, err error) {
+	if strings.HasPrefix(name, ".") {
+		err = fmt.Errorf("%w: must not start with %q", ErrInvalidProjectName, ".")
+		return
+	}
+
+	forbiddenChars := "%*\\/"
+	if strings.ContainsAny(name, forbiddenChars) {
+		err = fmt.Errorf("%w: must not contain any of %q", ErrInvalidProjectName, forbiddenChars)
+		return
+	}
+
+	if strings.Count(name, previewSeparator) > 1 {
+		err = fmt.Errorf("%w: must contain at most one %q", ErrInvalidProjectName, previewSeparator)
+		return
+	}
+
+	if _, atSuffix, isPreview := strings.Cut(name, "@"); isPreview {
+		if prNumber, parseErr := strconv.ParseInt(atSuffix, 10, 64); parseErr != nil {
+			err = fmt.Errorf("%w: malformed pull request number", ErrInvalidProjectName)
+			return
+		} else if prNumber <= 0 {
+			err = fmt.Errorf("%w: malformed pull request number", ErrInvalidProjectName)
+			return
+		}
+	}
+
+	proj.name = name
+	return
+}
+
+// ParseProjectName parses the given string as a project name. The string must not be empty, and
+// ".index" represents the index project.
+func ParseProjectName(name string) (Project, error) {
+	if name == indexProject {
+		return Project{indexProject}, nil
+	}
+
+	return validateProjectName(name)
+}
+
+// ParseProjectURL parses the given project URL and extracts the project name. The URL must have
+// zero or one path segments,
+func ParseProjectURL(url *url.URL) (Project, error) {
+	// path must be either `/`, `/foo`, or `/foo/`
+	path := strings.TrimPrefix(strings.TrimSuffix(url.Path, "/"), "/")
+	if strings.Contains(path, "/") {
+		return Project{}, fmt.Errorf("%w: must contain zero or one path segments", ErrInvalidProjectURL)
+	} else if path == "" {
+		return Project{indexProject}, nil
+	} else if name, err := validateProjectName(path); err != nil {
+		return Project{}, fmt.Errorf("%w: %w", ErrInvalidProjectURL, err)
+	} else {
+		return name, nil
+	}
+}

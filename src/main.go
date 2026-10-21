@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/git-pages/git-pages/src/names"
 	sys "codeberg.org/git-pages/git-pages/src/sys"
 	automemlimit "github.com/KimMachineGun/automemlimit/memlimit"
 	"github.com/c2h5oh/datasize"
@@ -679,8 +680,8 @@ func Main(versionInfo string) {
 				"'domain.tld/project' or 'domain.tld/*'")
 		}
 
-		if project != "*" && project != ".index" {
-			if err := ValidateProjectName(project); err != nil {
+		if project != "*" {
+			if _, err := names.ParseProjectName(project); err != nil {
 				logc.Fatalf(ctx, "audit detach: project name: %v\n", err)
 			}
 		}

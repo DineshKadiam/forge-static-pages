@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/git-pages/git-pages/src/names"
 	"golang.org/x/net/idna"
 )
 
@@ -76,38 +77,6 @@ func GetHost(r *http.Request) (string, error) {
 	}
 	host = strings.TrimSuffix(host, ".")
 	return host, nil
-}
-
-func ValidateProjectName(name string) error {
-	if strings.HasPrefix(name, ".") {
-		return fmt.Errorf("must not start with %q", ".")
-	}
-
-	forbiddenChars := "%*\\"
-	if strings.ContainsAny(name, forbiddenChars) {
-		return fmt.Errorf("must not contain any of %q", forbiddenChars)
-	}
-
-	return nil
-}
-
-func GetProjectName(r *http.Request) (string, error) {
-	// path must be either `/` or `/foo/` (`/foo` is accepted as an alias)
-	path := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, "/"), "/")
-	if err := ValidateProjectName(path); err != nil {
-		return "", AuthError{http.StatusBadRequest,
-			fmt.Sprintf("directory name: %v", err)}
-	} else if strings.Contains(path, "/") {
-		return "", AuthError{http.StatusBadRequest,
-			"directories nested too deep"}
-	}
-
-	if path == "" {
-		// path `/` corresponds to pseudo-project `.index`
-		return ".index", nil
-	} else {
-		return path, nil
-	}
 }
 
 type Authorization struct {
@@ -203,7 +172,7 @@ func authorizeDNSAllowlist(r *http.Request, scope string) (*Authorization, error
 		return nil, err
 	}
 
-	projectName, err := GetProjectName(r)
+	projectName, err := names.ParseProjectURL(r.URL)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +184,7 @@ func authorizeDNSAllowlist(r *http.Request, scope string) (*Authorization, error
 			fmt.Sprintf("failed to look up DNS repository allowlist: %s TXT", allowlistHostname)}
 	}
 
-	if projectName != ".index" {
+	if !projectName.IsIndex() {
 		return nil, AuthError{http.StatusUnauthorized,
 			"DNS repository allowlist only authorizes index site"}
 	}
@@ -279,13 +248,13 @@ func authorizeWildcardMatchSite(r *http.Request, pattern *WildcardPattern) (*Aut
 		return nil, err
 	}
 
-	projectName, err := GetProjectName(r)
+	projectName, err := names.ParseProjectURL(r.URL)
 	if err != nil {
 		return nil, err
 	}
 
 	if userName, found := pattern.Matches(host, WildcardDomainPrimary); found {
-		repoURL, branch := pattern.ApplyTemplate(userName, projectName)
+		repoURL, branch := pattern.ApplyTemplate(userName, projectName.String())
 		return &Authorization{repoURLs: []string{repoURL}, branch: branch}, nil
 	} else {
 		return nil, AuthError{
@@ -604,7 +573,7 @@ func authorizeGogsUser(repoURL string, forgeToken string) (*Authorization, error
 	}, nil
 }
 
-func authorizeForgejoActionRun(repoURL string, forgeToken string, prNumber string) (
+func authorizeForgejoActionRun(repoURL string, forgeToken string, prNumber int64) (
 	*Authorization, error,
 ) {
 	parsedRepoURL, err := url.Parse(repoURL)
@@ -623,7 +592,7 @@ func authorizeForgejoActionRun(repoURL string, forgeToken string, prNumber strin
 	if fmt.Sprintf("/%s/%s.git", strings.ToLower(prOwner), prRepository) != parsedRepoURL.Path {
 		return nil, AuthError{http.StatusUnauthorized, "pull request repository does not match"}
 	}
-	if fmt.Sprintf("%d", actionRun.PullRequest.Number) != prNumber {
+	if actionRun.PullRequest.Number != prNumber {
 		return nil, AuthError{http.StatusUnauthorized, "pull request number does not match"}
 	}
 
@@ -646,7 +615,7 @@ func authorizeForgeWildcard(r *http.Request) (*Authorization, error) {
 		return nil, err
 	}
 
-	projectName, err := GetProjectName(r)
+	projectName, err := names.ParseProjectURL(r.URL)
 	if err != nil {
 		return nil, err
 	}
@@ -655,7 +624,7 @@ func authorizeForgeWildcard(r *http.Request) (*Authorization, error) {
 	for _, pattern := range wildcards {
 		if pattern.Authorization {
 			if userName, found := pattern.Matches(host, WildcardDomainPrimary); found {
-				repoName := projectName
+				repoName := projectName.String()
 				repoURL, branch := pattern.ApplyTemplate(userName, repoName)
 				auth, err := authorizeGogsUser(repoURL, forgeToken)
 				if err != nil {
@@ -667,13 +636,13 @@ func authorizeForgeWildcard(r *http.Request) (*Authorization, error) {
 			}
 
 			if userName, found := pattern.Matches(host, WildcardDomainPreview); found {
-				if repoName, atSuffix, foundAt := strings.Cut(projectName, "@"); !foundAt {
+				if repoName, prNumber, isPreview := projectName.GetPullRequest(); !isPreview {
 					errs = append([]error{
 						AuthError{http.StatusUnauthorized, "not a preview project name (no `@`)"},
 					}, errs...)
 				} else {
 					repoURL, branch := pattern.ApplyTemplate(userName, repoName)
-					auth, err := authorizeForgejoActionRun(repoURL, forgeToken, atSuffix)
+					auth, err := authorizeForgejoActionRun(repoURL, forgeToken, prNumber)
 					if err != nil {
 						errs = append(errs, err)
 					} else {

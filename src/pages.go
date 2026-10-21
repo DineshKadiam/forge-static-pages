@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/git-pages/git-pages/src/names"
 	"github.com/klauspost/compress/zstd"
 	"github.com/pquerna/cachecontrol/cacheobject"
 	"github.com/prometheus/client_golang/prometheus"
@@ -90,12 +91,12 @@ func getWebRoot(r *http.Request) (string, error) {
 		return "", err
 	}
 
-	projectName, err := GetProjectName(r)
+	projectName, err := names.ParseProjectURL(r.URL)
 	if err != nil {
 		return "", err
 	}
 
-	return makeWebRoot(host, projectName), nil
+	return makeWebRoot(host, projectName.String()), nil
 }
 
 func writeRedirect(w http.ResponseWriter, code int, path string) {
@@ -155,7 +156,7 @@ func getPage(w http.ResponseWriter, r *http.Request) error {
 	projectPathPrefix := "/" // 2xx and 4xx redirect target URLs must start with this prefix
 	if projectName, projectPath, hasProjectSlash := strings.Cut(sitePath, "/"); projectName != "" {
 		webRoot := makeWebRoot(host, projectName)
-		if ValidateProjectName(projectName) == nil &&
+		if _, err = names.ParseProjectName(projectName); err == nil &&
 			existenceCache.CheckSite(r.Context(), webRoot).IsPossible() {
 			var projectManifest *Manifest
 			var projectMetadata ManifestMetadata
@@ -992,6 +993,9 @@ func ServePages(w http.ResponseWriter, r *http.Request) {
 		err = fmt.Errorf("method %s not allowed", r.Method)
 	}
 	if err != nil {
+		if errors.Is(err, names.ErrInvalidProjectURL) {
+			http.Error(w, prettyErrMsg(err), http.StatusBadRequest)
+		}
 		var authErr AuthError
 		if errors.As(err, &authErr) {
 			http.Error(w, prettyErrMsg(err), authErr.code)
