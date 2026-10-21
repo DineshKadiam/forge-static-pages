@@ -9,6 +9,7 @@ import (
 	"net"
 	"time"
 
+	"codeberg.org/git-pages/git-pages/src/names"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -94,7 +95,11 @@ func ACMEConfig(ctx context.Context) *tls.Config {
 		Email:  config.Acme.Email,
 		Cache:  secretAcmeCache{},
 		Prompt: func(tosURL string) bool { return config.Acme.AcceptTOS },
-		HostPolicy: func(ctx context.Context, domain string) error {
+		HostPolicy: func(ctx context.Context, host string) error {
+			domain, err := names.ParseDomain(host, names.ParseDomainRelaxed)
+			if err != nil {
+				return err
+			}
 			if existenceCache.CheckDomain(ctx, domain).IsPossible() {
 				if found, err := backend.CheckDomain(ctx, domain); found {
 					return nil
