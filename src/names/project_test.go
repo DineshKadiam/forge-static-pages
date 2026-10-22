@@ -58,10 +58,6 @@ func TestParseProjectName(t *testing.T) {
 	checkErr(t, ParseProjectName, "meow\\miau", ErrInvalidProjectName)
 	checkErr(t, ParseProjectName, "meow%miau", ErrInvalidProjectName)
 	checkErr(t, ParseProjectName, "meow*", ErrInvalidProjectName)
-	checkErr(t, ParseProjectName, "foo@10@11", ErrInvalidProjectName)
-	checkErr(t, ParseProjectName, "foo@awa", ErrInvalidProjectName)
-	checkErr(t, ParseProjectName, "foo@0", ErrInvalidProjectName)
-	checkErr(t, ParseProjectName, "foo@-10", ErrInvalidProjectName)
 }
 
 func TestParseProjectURL(t *testing.T) {
@@ -94,6 +90,26 @@ func TestProjectProperties(t *testing.T) {
 
 	baseName, prNumber, isPreview := Project{"foo"}.GetPullRequest()
 	checkEq(t, baseName, "foo")
+	checkEq(t, prNumber, 0)
+	checkEq(t, isPreview, false)
+
+	baseName, prNumber, isPreview = Project{"foo@10@11"}.GetPullRequest()
+	checkEq(t, baseName, "foo@10@11")
+	checkEq(t, prNumber, 0)
+	checkEq(t, isPreview, false)
+
+	baseName, prNumber, isPreview = Project{"foo@-1"}.GetPullRequest()
+	checkEq(t, baseName, "foo@-1")
+	checkEq(t, prNumber, 0)
+	checkEq(t, isPreview, false)
+
+	baseName, prNumber, isPreview = Project{"foo@0"}.GetPullRequest()
+	checkEq(t, baseName, "foo@0")
+	checkEq(t, prNumber, 0)
+	checkEq(t, isPreview, false)
+
+	baseName, prNumber, isPreview = Project{"foo@meow"}.GetPullRequest()
+	checkEq(t, baseName, "foo@meow")
 	checkEq(t, prNumber, 0)
 	checkEq(t, isPreview, false)
 

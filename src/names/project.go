@@ -12,7 +12,6 @@ var ErrInvalidProjectName = errors.New("invalid project name")
 var ErrInvalidProjectURL = errors.New("invalid project URL")
 
 const indexProject = ".index"
-const previewSeparator = "@"
 
 // Name of a git-pages project. The index project corresponds to the root URL of a domain, and
 // non-index projects are distinguished by the first path segment of the URL.
@@ -49,13 +48,13 @@ func (p Project) IsIndex() bool {
 // a preview project name for a pull request. In the latter case, prNumber is set correspondingly,
 // and baseName contains the repository name. Otherwise, baseName equals p.String().
 func (p Project) GetPullRequest() (baseName string, prNumber int64, isPreview bool) {
-	var atSuffix string
-	if baseName, atSuffix, isPreview = strings.Cut(p.String(), "@"); isPreview {
-		prNumber, _ = strconv.ParseInt(atSuffix, 10, 64)
-	} else {
-		baseName = p.String()
+	if repoName, atSuffix, isPreview := strings.Cut(p.String(), "@"); isPreview {
+		if prNumber, err := strconv.ParseInt(atSuffix, 10, 64); err == nil && prNumber > 0 {
+			baseName = repoName
+			return repoName, prNumber, true
+		}
 	}
-	return
+	return p.String(), 0, false
 }
 
 func validateProjectName(name string) (proj Project, err error) {
@@ -68,21 +67,6 @@ func validateProjectName(name string) (proj Project, err error) {
 	if strings.ContainsAny(name, forbiddenChars) {
 		err = fmt.Errorf("%w: must not contain any of %q", ErrInvalidProjectName, forbiddenChars)
 		return
-	}
-
-	if strings.Count(name, previewSeparator) > 1 {
-		err = fmt.Errorf("%w: must contain at most one %q", ErrInvalidProjectName, previewSeparator)
-		return
-	}
-
-	if _, atSuffix, isPreview := strings.Cut(name, "@"); isPreview {
-		if prNumber, parseErr := strconv.ParseInt(atSuffix, 10, 64); parseErr != nil {
-			err = fmt.Errorf("%w: malformed pull request number", ErrInvalidProjectName)
-			return
-		} else if prNumber <= 0 {
-			err = fmt.Errorf("%w: malformed pull request number", ErrInvalidProjectName)
-			return
-		}
 	}
 
 	proj.name = name
