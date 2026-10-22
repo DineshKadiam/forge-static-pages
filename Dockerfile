@@ -3,7 +3,7 @@ FROM docker.io/library/alpine:3 AS ca-certificates-builder
 RUN apk --no-cache add ca-certificates
 
 # Build supervisor.
-FROM docker.io/library/golang:1.26.10-alpine@sha256:95086244f14745c3afe829d2d46d6d34739dc6850ebef3994b2c1fa6a6f6bbb9 AS supervisor-builder
+FROM docker.io/library/golang:1.26.10-alpine@sha256:5cb67f19c5e7994dcb80c074f7cfca8aeeada45bbdca035f73df269cefdcce61 AS supervisor-builder
 RUN apk --no-cache add git
 WORKDIR /build
 RUN git clone https://github.com/ochinchina/supervisord . && \
@@ -16,7 +16,7 @@ RUN xcaddy build ${CADDY_VERSION} \
     --with=github.com/ss098/certmagic-s3@v0.0.0-20250922022452-8af482af5f39
 
 # Build git-pages.
-FROM docker.io/library/golang:1.26.10-alpine@sha256:95086244f14745c3afe829d2d46d6d34739dc6850ebef3994b2c1fa6a6f6bbb9 AS git-pages-builder
+FROM docker.io/library/golang:1.26.10-alpine@sha256:5cb67f19c5e7994dcb80c074f7cfca8aeeada45bbdca035f73df269cefdcce61 AS git-pages-builder
 RUN apk --no-cache add git
 WORKDIR /build
 COPY go.mod go.sum ./
