@@ -15,7 +15,9 @@ import (
 	"strings"
 
 	"github.com/c2h5oh/datasize"
+	"github.com/go-git/go-git/v6/plumbing"
 	"github.com/klauspost/compress/zstd"
+	"google.golang.org/protobuf/proto"
 )
 
 var ErrArchiveTooLarge = errors.New("archive too large")
@@ -131,6 +133,16 @@ func ExtractTar(ctx context.Context, reader io.Reader, oldManifest *Manifest) (*
 			}
 		case tar.TypeDir:
 			AddDirectory(manifest, fileName)
+		case tar.TypeXGlobalHeader:
+			// `git-archive <commit-ish>` puts the commit hash in the `comment` field. We stash
+			// this into the manifest when the format looks right. Unlike when we do the clone,
+			// there's no actual guarantee that the commit sha is real; however since the repo
+			// contents is user-supplied and untrusted in first place, this should be fine.
+			if comment, found := header.PAXRecords["comment"]; found {
+				if _, ok := plumbing.FromHex(comment); ok {
+					manifest.Commit = proto.String(comment)
+				}
+			}
 		default:
 			AddProblem(manifest, fileName, "tar: unsupported type '%c'", header.Typeflag)
 			continue
