@@ -92,10 +92,12 @@ message Problem {
 }
 
 message Manifest {
-	// Source metadata.
+	// Source metadata, guaranteed to be accurate if present.
 	string repo_url = 1;
 	string branch = 2;
 	string commit = 3;
+	// Uploader-controlled metadata.
+	string comment = 14;
 
 	// Site contents.
 	map<string, Entry> contents = 4;

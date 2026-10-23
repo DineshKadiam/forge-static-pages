@@ -645,10 +645,12 @@ func (x *Problem) GetCause() string {
 
 type Manifest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Source metadata.
+	// Source metadata, guaranteed to be accurate if present.
 	RepoUrl *string `protobuf:"bytes,1,opt,name=repo_url,json=repoUrl" json:"repo_url,omitempty"`
 	Branch  *string `protobuf:"bytes,2,opt,name=branch" json:"branch,omitempty"`
 	Commit  *string `protobuf:"bytes,3,opt,name=commit" json:"commit,omitempty"`
+	// Uploader-controlled metadata.
+	Comment *string `protobuf:"bytes,14,opt,name=comment" json:"comment,omitempty"`
 	// Site contents.
 	Contents       map[string]*Entry `protobuf:"bytes,4,rep,name=contents" json:"contents,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	OriginalSize   *int64            `protobuf:"varint,10,opt,name=original_size,json=originalSize" json:"original_size,omitempty"`      // sum of each `entry.original_size`
@@ -715,6 +717,13 @@ func (x *Manifest) GetBranch() string {
 func (x *Manifest) GetCommit() string {
 	if x != nil && x.Commit != nil {
 		return *x.Commit
+	}
+	return ""
+}
+
+func (x *Manifest) GetComment() string {
+	if x != nil && x.Comment != nil {
+		return *x.Comment
 	}
 	return ""
 }
@@ -1055,11 +1064,12 @@ const file_schema_proto_rawDesc = "" +
 	"\vcredentials\x18\x02 \x03(\v2\x10.BasicCredentialR\vcredentials\"3\n" +
 	"\aProblem\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x14\n" +
-	"\x05cause\x18\x02 \x01(\tR\x05cause\"\xc0\x04\n" +
+	"\x05cause\x18\x02 \x01(\tR\x05cause\"\xda\x04\n" +
 	"\bManifest\x12\x19\n" +
 	"\brepo_url\x18\x01 \x01(\tR\arepoUrl\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x16\n" +
-	"\x06commit\x18\x03 \x01(\tR\x06commit\x123\n" +
+	"\x06commit\x18\x03 \x01(\tR\x06commit\x12\x18\n" +
+	"\acomment\x18\x0e \x01(\tR\acomment\x123\n" +
 	"\bcontents\x18\x04 \x03(\v2\x17.Manifest.ContentsEntryR\bcontents\x12#\n" +
 	"\roriginal_size\x18\n" +
 	" \x01(\x03R\foriginalSize\x12'\n" +
