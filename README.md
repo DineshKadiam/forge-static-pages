@@ -1,3 +1,5 @@
+> Originally developed at [codeberg.org/git-pages/git-pages](https://codeberg.org/git-pages/git-pages) · 0BSD
+
 git-pages
 =========
 
